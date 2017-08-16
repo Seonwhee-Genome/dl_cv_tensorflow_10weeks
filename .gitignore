@@ -4,3 +4,4 @@
 *.pyc
 MNIST_data
 solaris.pem
+AWS.sh
