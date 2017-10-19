@@ -23,7 +23,7 @@ MAX_ITERATION = int(1e5 + 1)
 NUM_OF_CLASSESS = 151
 IMAGE_SIZE = 224
 
-
+############## reconstruction of vgg net #########################
 def vgg_net(weights, image):
     layers = (
         'conv1_1', 'relu1_1', 'conv1_2', 'relu1_2', 'pool1',
@@ -70,21 +70,21 @@ def inference(image, keep_prob):
     :return:
     """
     print("setting up vgg initialized conv layers ...")
-    model_data = utils.get_model_data(FLAGS.model_dir, MODEL_URL)
+    model_data = utils.get_model_data(FLAGS.model_dir, MODEL_URL) # load ckpt
 
     mean = model_data['normalization'][0][0][0]
     mean_pixel = np.mean(mean, axis=(0, 1))
 
     weights = np.squeeze(model_data['layers'])
 
-    processed_image = utils.process_image(image, mean_pixel)
-
+    processed_image = utils.process_image(image, mean_pixel) ####
+######################################################################
     with tf.variable_scope("inference"):
         image_net = vgg_net(weights, processed_image)
         conv_final_layer = image_net["conv5_3"]
 
-        pool5 = utils.max_pool_2x2(conv_final_layer)
-
+        pool5 = utils.max_pool_2x2(conv_final_layer) 
+### Change Fully Connected Layer --> Fully Convolution
         W6 = utils.weight_variable([7, 7, 512, 4096], name="W6")
         b6 = utils.bias_variable([4096], name="b6")
         conv6 = utils.conv2d_basic(pool5, W6, b6)
@@ -101,8 +101,8 @@ def inference(image, keep_prob):
             utils.add_activation_summary(relu7)
         relu_dropout7 = tf.nn.dropout(relu7, keep_prob=keep_prob)
 
-        W8 = utils.weight_variable([1, 1, 4096, NUM_OF_CLASSESS], name="W8")
-        b8 = utils.bias_variable([NUM_OF_CLASSESS], name="b8")
+        W8 = utils.weight_variable([1, 1, 4096, NUM_OF_CLASSESS], name="W8")  
+        b8 = utils.bias_variable([NUM_OF_CLASSESS], name="b8") #####
         conv8 = utils.conv2d_basic(relu_dropout7, W8, b8)
         # annotation_pred1 = tf.argmax(conv8, dimension=3, name="prediction1")
 
@@ -110,7 +110,7 @@ def inference(image, keep_prob):
         deconv_shape1 = image_net["pool4"].get_shape()
         W_t1 = utils.weight_variable([4, 4, deconv_shape1[3].value, NUM_OF_CLASSESS], name="W_t1")
         b_t1 = utils.bias_variable([deconv_shape1[3].value], name="b_t1")
-        conv_t1 = utils.conv2d_transpose_strided(conv8, W_t1, b_t1, output_shape=tf.shape(image_net["pool4"]))
+        conv_t1 = utils.conv2d_transpose_strided(conv8, W_t1, b_t1, output_shape=tf.shape(image_net["pool4"]))# Deconvolution
         fuse_1 = tf.add(conv_t1, image_net["pool4"], name="fuse_1")
 
         deconv_shape2 = image_net["pool3"].get_shape()
@@ -141,9 +141,9 @@ def train(loss_val, var_list):
 
 
 def main(argv=None):
-    keep_probability = tf.placeholder(tf.float32, name="keep_probabilty")
+    keep_probability = tf.placeholder(tf.float32, name="keep_probabilty")  # dropout
     image = tf.placeholder(tf.float32, shape=[None, IMAGE_SIZE, IMAGE_SIZE, 3], name="input_image")
-    annotation = tf.placeholder(tf.int32, shape=[None, IMAGE_SIZE, IMAGE_SIZE, 1], name="annotation")
+    annotation = tf.placeholder(tf.int32, shape=[None, IMAGE_SIZE, IMAGE_SIZE, 1], name="annotation") # ground truth arg
 
     pred_annotation, logits = inference(image, keep_probability)
     tf.summary.image("input_image", image, max_outputs=2)
@@ -151,7 +151,7 @@ def main(argv=None):
     tf.summary.image("pred_annotation", tf.cast(pred_annotation, tf.uint8), max_outputs=2)
     loss = tf.reduce_mean((tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                                           labels=tf.squeeze(annotation, squeeze_dims=[3]),
-                                                                          name="entropy")))
+                                                                          name="entropy"))) #sum of cross entropy by pixel
     tf.summary.scalar("entropy", loss)
 
     trainable_var = tf.trainable_variables()
@@ -161,7 +161,7 @@ def main(argv=None):
     train_op = train(loss, trainable_var)
 
     print("Setting up summary op...")
-    summary_op = tf.summary.merge_all()
+    summary_op = tf.summary.merge_all() # for tensorboard
 
     print("Setting up image reader...")
     train_records, valid_records = scene_parsing.read_dataset(FLAGS.data_dir)
@@ -181,7 +181,7 @@ def main(argv=None):
     summary_writer = tf.summary.FileWriter(FLAGS.logs_dir, sess.graph)
 
     sess.run(tf.global_variables_initializer())
-    ckpt = tf.train.get_checkpoint_state(FLAGS.logs_dir)
+    ckpt = tf.train.get_checkpoint_state(FLAGS.logs_dir) # load past-saved weights and biases
     if ckpt and ckpt.model_checkpoint_path:
         saver.restore(sess, ckpt.model_checkpoint_path)
         print("Model restored...")

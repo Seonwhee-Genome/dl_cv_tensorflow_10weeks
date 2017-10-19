@@ -22,7 +22,7 @@ mixtures = 1
 def old_cleanup(data):
   X = data[0]
   if X.shape[1] == 1:
-    X = X[:, -1, :]/127.5 - 1.
+    X = X[:, -1, :]/127.5 - 1.   # range 0~1
   return X
 
 
@@ -52,15 +52,16 @@ def train_model(name, g_train, d_train, sampler, generator, samples_per_epoch, n
     if verbose:
         callbacks += [cbks.ProgbarLogger()]
     callbacks = cbks.CallbackList(callbacks)
-
+#############################################################
     callbacks._set_params({
         'nb_epoch': nb_epoch,
         'nb_sample': samples_per_epoch,
         'verbose': verbose,
         'metrics': callback_metrics,
     })
+#############################################################
     callbacks.on_train_begin()
-
+########### modify callback function #######################
     while epoch < nb_epoch:
       callbacks.on_epoch_begin(epoch)
       samples_seen = 0
@@ -92,8 +93,8 @@ def train_model(name, g_train, d_train, sampler, generator, samples_per_epoch, n
           for j, (i1, i2) in enumerate(zip(samples[:64], xs[:64])):
             join_image[j*2] = i1
             join_image[j*2+1] = i2
-          save_images(join_image, [8*2, 8],
-                      './outputs/samples_%s/train_%s_%s.png' % (name, epoch, batch_index))
+          ############# Save image like slide 20
+          save_images(join_image, [8*2, 8],'./outputs/samples_%s/train_%s_%s.png' % (name, epoch, batch_index))
 
           samples, xs = sampler(z, x)
           join_image = np.zeros_like(np.concatenate([samples[:64], xs[:64]], axis=0))
@@ -126,7 +127,7 @@ def train_model(name, g_train, d_train, sampler, generator, samples_per_epoch, n
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Generative model trainer')
   parser.add_argument('model', type=str, default="bn_model", help='Model definitnion file')
-  parser.add_argument('--name', type=str, default="autoencoder", help='Name of the model.')
+  parser.add_argument('--name', type=str, default="autoencoder", help='Name of the model.') # train autoencoder
   parser.add_argument('--host', type=str, default="localhost", help='Data server ip address.')
   parser.add_argument('--port', type=int, default=5557, help='Port of server.')
   # parser.add_argument('--time', type=int, default=1, help='How many temporal frames in a single input.')
@@ -146,9 +147,9 @@ if __name__ == "__main__":
   try:
     exec("from models."+MODEL_NAME+" import cleanup")
   except:
-    cleanup = old_cleanup
+    cleanup = old_cleanup 
 
-  model_code = open('models/'+MODEL_NAME+'.py').read()
+  model_code = open('models/'+MODEL_NAME+'.py').read()  # default autoencoder.py
 
   if not os.path.exists("./outputs/results_"+args.name):
       os.makedirs("./outputs/results_"+args.name)
